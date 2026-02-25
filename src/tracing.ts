@@ -36,7 +36,39 @@ import { serializeBigInts } from './serialize.ts'
 
 const logger = getLogger('tracing')
 
-export const tracingConfigSchema = z.object({
+export interface TracingConfig {
+    enableConsole: boolean
+    processor: 'simple' | 'batch'
+    http?: {
+        url: string
+        headers: Record<string, string>
+        timeoutMillis?: number
+        auth?: {
+            username: string
+            password: string
+        }
+    }
+    resourceAttributes: Map<string, string>
+    mutedSpans: string[]
+}
+
+interface TracingConfigInput {
+    enableConsole?: boolean
+    processor?: 'simple' | 'batch'
+    http?: {
+        url: string
+        headers?: Record<string, string>
+        timeoutMillis?: number
+        auth?: {
+            username: string
+            password: string
+        }
+    }
+    resourceAttributes?: Map<string, string>
+    mutedSpans?: string[]
+}
+
+export const tracingConfigSchema: z.ZodType<TracingConfig, TracingConfigInput> = z.object({
     enableConsole: z.boolean().default(false),
     processor: z.enum(['simple', 'batch']).default('batch'),
     http: z
@@ -55,8 +87,6 @@ export const tracingConfigSchema = z.object({
     resourceAttributes: z.map(z.string(), z.string()).default(new Map()),
     mutedSpans: z.array(z.string()).default([]),
 })
-
-export type TracingConfig = z.infer<typeof tracingConfigSchema>
 export type SpanFilter = (spanName: string) => boolean
 export type ShutdownTracing = () => Promise<void>
 
@@ -250,7 +280,10 @@ function getSpanName<This extends HasConstructor>(owner: This, context: ClassMet
 
 export function withTracing<This extends HasConstructor, Args extends AnyArgs, Return>(
     options?: DecoratorOptions<This, Args, Return>,
-) {
+): (
+    originalMethod: AsyncMethod<This, Args, Return> | undefined,
+    context: ClassMethodDecoratorContext<This, AsyncMethod<This, Args, Return>>,
+) => AsyncMethod<This, Args, Return> | undefined {
     return function (
         originalMethod: AsyncMethod<This, Args, Return> | undefined,
         context: ClassMethodDecoratorContext<This, AsyncMethod<This, Args, Return>>,
@@ -271,7 +304,10 @@ export function withTracing<This extends HasConstructor, Args extends AnyArgs, R
 
 export function withTracingGenerator<This extends HasConstructor, Args extends AnyArgs, YieldT>(
     options?: DecoratorOptions<This, Args>,
-) {
+): (
+    originalMethod: Method<This, Args, AsyncGenerator<YieldT>> | undefined,
+    context: ClassMethodDecoratorContext<This, Method<This, Args, AsyncGenerator<YieldT>>>,
+) => Method<This, Args, AsyncGenerator<YieldT>> | undefined {
     return function (
         originalMethod: Method<This, Args, AsyncGenerator<YieldT>> | undefined,
         context: ClassMethodDecoratorContext<This, Method<This, Args, AsyncGenerator<YieldT>>>,
@@ -312,7 +348,7 @@ function withSpanImpl<R>(
     })
 }
 
-export function getVersion() {
+export function getVersion(): string | undefined {
     try {
         return readFileSync('./version', 'utf8').split(/\r?\n/)[0]
     } catch {}
