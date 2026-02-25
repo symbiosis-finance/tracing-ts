@@ -1,3 +1,4 @@
+/// <reference lib="deno.ns" />
 import { describe, it, beforeAll, afterAll } from 'jsr:@std/testing/bdd'
 import { assertSnapshot } from 'jsr:@std/testing/snapshot'
 import assert from 'node:assert/strict'
@@ -556,4 +557,23 @@ describe('resilience: slow endpoint does not add latency', () => {
         assert.equal(result, 42)
         assert.ok(elapsed < 1000, `Expected <1s but took ${elapsed.toFixed(0)}ms`)
     })
+})
+
+// ─── Permission tests ────────────────────────────────────────────────────────
+
+Deno.test({
+    name: 'configureTracing works without sys permission (no hostname)',
+    permissions: { sys: [], read: true, env: true, net: true },
+    async fn() {
+        const shutdown = await configureTracing({
+            serviceName: 'test-no-sys',
+            serviceVersion: '0.0.0',
+            tracerName: 'test-no-sys',
+            config: tracingConfigSchema.parse({}),
+        })
+        const result = await withSpan('no-sys.test', {}, async () => 42)
+        assert.equal(result, 42)
+        await shutdown()
+        trace.disable()
+    },
 })
