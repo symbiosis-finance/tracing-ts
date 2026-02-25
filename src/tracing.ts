@@ -176,7 +176,7 @@ export async function configureTracing(options: TracingInitOptions): Promise<Shu
             [ATTR_SERVICE_VERSION]: options.serviceVersion ?? getVersion(),
             [ATTR_K8S_NAMESPACE_NAME]: getK8sNamespace(), // TODO: use OTEL Kubernetes Controller instead.
             [ATTR_PROCESS_VPID]: process.pid,
-            [ATTR_HOST_NAME]: os.hostname(),
+            [ATTR_HOST_NAME]: tryHostname(),
             ...Object.fromEntries(config.resourceAttributes),
         }),
     )
@@ -351,6 +351,12 @@ function withSpanImpl<R>(
 export function getVersion(): string | undefined {
     try {
         return readFileSync('./version', 'utf8').split(/\r?\n/)[0]
+    } catch {}
+}
+
+function tryHostname(): string | undefined {
+    try {
+        return os.hostname()
     } catch {}
 }
 
