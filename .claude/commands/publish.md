@@ -35,7 +35,7 @@ If either workflow fails, report the failure and stop.
 
 Fetch the package metadata from JSR to confirm the version is published:
 ```
-curl -s https://api.jsr.io/@symbiosis-finance/tracing | python3 -m json.tool
+curl -s https://api.jsr.io/scopes/symbiosis-finance/packages/tracing | python3 -m json.tool
 ```
 
 Check that the new version appears in the response. Report the final status with a link to `https://jsr.io/@symbiosis-finance/tracing`.
