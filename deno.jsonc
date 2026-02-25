@@ -1,7 +1,6 @@
 {
   "name": "@symbiosis-finance/tracing",
   "version": "1.0.2",
-  "description": "OpenTelemetry tracing wrapper for Deno/TypeScript with one-call setup, span helpers, and class method decorators.",
   "exports": { ".": "./src/index.ts" },
   "publish": {
     "exclude": ["node_modules/", "src/**/*.test.ts", "src/__snapshots__/", ".claude/", ".github/"]
