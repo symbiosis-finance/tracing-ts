@@ -36,6 +36,7 @@ import { serializeBigInts } from './serialize.ts'
 
 const logger = getLogger('tracing')
 
+/** Parsed tracing configuration. Obtain via {@linkcode tracingConfigSchema}. */
 export interface TracingConfig {
     enableConsole: boolean
     processor: 'simple' | 'batch'
@@ -68,6 +69,7 @@ interface TracingConfigInput {
     mutedSpans?: string[]
 }
 
+/** Zod schema that validates and provides defaults for {@linkcode TracingConfig}. */
 export const tracingConfigSchema: z.ZodType<TracingConfig, TracingConfigInput> = z.object({
     enableConsole: z.boolean().default(false),
     processor: z.enum(['simple', 'batch']).default('batch'),
@@ -87,9 +89,12 @@ export const tracingConfigSchema: z.ZodType<TracingConfig, TracingConfigInput> =
     resourceAttributes: z.map(z.string(), z.string()).default(new Map()),
     mutedSpans: z.array(z.string()).default([]),
 })
+/** Predicate that decides whether a span should be sampled. Return `true` to mute. */
 export type SpanFilter = (spanName: string) => boolean
+/** Flushes pending spans and shuts down the tracer provider. */
 export type ShutdownTracing = () => Promise<void>
 
+/** Options for {@linkcode configureTracing}. */
 export interface TracingInitOptions {
     serviceName: string
     serviceVersion?: string
@@ -130,6 +135,7 @@ class TraceIDLogger implements SpanProcessor {
     }
 }
 
+/** Initialise OpenTelemetry tracing. Returns a shutdown function that flushes and tears down the provider. */
 export async function configureTracing(options: TracingInitOptions): Promise<ShutdownTracing> {
     _tracerName = options.tracerName
     const config = options.config
@@ -193,6 +199,7 @@ export async function configureTracing(options: TracingInitOptions): Promise<Shu
     }
 }
 
+/** Execute a synchronous function inside a new span. */
 export function withSpanSync<R>(name: string, options: SpanOptions, fn: (span: Span) => R): R {
     const tracer = getTracer()
     return tracer.startActiveSpan(name, options, (span: Span) => {
@@ -209,10 +216,12 @@ export function withSpanSync<R>(name: string, options: SpanOptions, fn: (span: S
     })
 }
 
+/** Execute an async function inside a new root span (no parent). */
 export function withRootSpan<R>(name: string, attributes: Attributes, fn: (span: Span) => Promise<R>): Promise<R> {
     return withSpanImpl(name, { attributes, root: true }, fn)
 }
 
+/** Execute an async function inside a new span with optional success attributes. */
 export function withSpan<R>(
     name: string,
     attributes: AttributesLike,
@@ -228,6 +237,7 @@ function recordException(span: Span, err: Exclude<unknown, undefined>) {
     if (err instanceof Error) span.recordException(err)
 }
 
+/** Wrap an async generator in a span, yielding values through. */
 export async function* withYieldSpan<R>(
     name: string,
     attributes: AttributesLike,
@@ -249,15 +259,21 @@ export async function* withYieldSpan<R>(
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
+/** Shorthand for an arbitrary argument list. */
 export type AnyArgs = any[]
+/** An async method signature used by {@linkcode withTracing}. */
 export type AsyncMethod<This, Args extends AnyArgs, Return> = (this: This, ...args: Args) => Promise<Return>
+/** A method signature used by {@linkcode withTracingGenerator}. */
 export type Method<This, Args extends AnyArgs, Return> = (this: This, ...args: Args) => Return
+/** An attribute value that also accepts `bigint` (serialised to string). */
 export type AttributeLike = AttributeValue | bigint | undefined
 
+/** A record of span attributes that accepts `bigint` values. */
 export interface AttributesLike {
     [attributeKey: string]: AttributeLike
 }
 
+/** Options for the {@linkcode withTracing} and {@linkcode withTracingGenerator} decorators. */
 export interface DecoratorOptions<This extends NonNullable<any>, Args extends AnyArgs, Return = void> {
     name?: string
     onCall?: (this: This, ...args: Args) => AttributesLike
@@ -278,6 +294,7 @@ function getSpanName<This extends HasConstructor>(owner: This, context: ClassMet
     return `${owner.constructor.name}.${String(context.name)}`
 }
 
+/** Class method decorator that wraps an async method in a span. */
 export function withTracing<This extends HasConstructor, Args extends AnyArgs, Return>(
     options?: DecoratorOptions<This, Args, Return>,
 ): (
@@ -302,6 +319,7 @@ export function withTracing<This extends HasConstructor, Args extends AnyArgs, R
     }
 }
 
+/** Class method decorator that wraps an async generator method in a span. */
 export function withTracingGenerator<This extends HasConstructor, Args extends AnyArgs, YieldT>(
     options?: DecoratorOptions<This, Args>,
 ): (
@@ -348,6 +366,7 @@ function withSpanImpl<R>(
     })
 }
 
+/** Read the service version from a `./version` file, or `undefined` if absent. */
 export function getVersion(): string | undefined {
     try {
         return readFileSync('./version', 'utf8').split(/\r?\n/)[0]
