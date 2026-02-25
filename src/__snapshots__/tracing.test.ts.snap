@@ -1,0 +1,679 @@
+export const snapshot = {};
+
+snapshot[`smoke tests > exports spans to collector as JSON 1`] = `
+[
+  {
+    body: {
+      resourceSpans: [
+        {
+          resource: {
+            attributes: [
+              {
+                key: "service.name",
+                value: {
+                  stringValue: "test-service",
+                },
+              },
+              {
+                key: "service.version",
+                value: {
+                  stringValue: "0.0.0-test",
+                },
+              },
+            ],
+          },
+          scopeSpans: [
+            {
+              scope: {
+                name: "test",
+              },
+              spans: [
+                {
+                  attributes: [],
+                  events: [],
+                  kind: 1,
+                  name: "smoke.async",
+                  status: {
+                    code: 1,
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    contentType: "application/json",
+    method: "POST",
+    path: "/",
+  },
+  {
+    body: {
+      resourceSpans: [
+        {
+          resource: {
+            attributes: [
+              {
+                key: "service.name",
+                value: {
+                  stringValue: "test-service",
+                },
+              },
+              {
+                key: "service.version",
+                value: {
+                  stringValue: "0.0.0-test",
+                },
+              },
+            ],
+          },
+          scopeSpans: [
+            {
+              scope: {
+                name: "test",
+              },
+              spans: [
+                {
+                  attributes: [],
+                  events: [],
+                  kind: 1,
+                  name: "smoke.sync",
+                  status: {
+                    code: 1,
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    contentType: "application/json",
+    method: "POST",
+    path: "/",
+  },
+  {
+    body: {
+      resourceSpans: [
+        {
+          resource: {
+            attributes: [
+              {
+                key: "service.name",
+                value: {
+                  stringValue: "test-service",
+                },
+              },
+              {
+                key: "service.version",
+                value: {
+                  stringValue: "0.0.0-test",
+                },
+              },
+            ],
+          },
+          scopeSpans: [
+            {
+              scope: {
+                name: "test",
+              },
+              spans: [
+                {
+                  attributes: [],
+                  events: [],
+                  kind: 1,
+                  name: "smoke.root",
+                  status: {
+                    code: 1,
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    contentType: "application/json",
+    method: "POST",
+    path: "/",
+  },
+  {
+    body: {
+      resourceSpans: [
+        {
+          resource: {
+            attributes: [
+              {
+                key: "service.name",
+                value: {
+                  stringValue: "test-service",
+                },
+              },
+              {
+                key: "service.version",
+                value: {
+                  stringValue: "0.0.0-test",
+                },
+              },
+            ],
+          },
+          scopeSpans: [
+            {
+              scope: {
+                name: "test",
+              },
+              spans: [
+                {
+                  attributes: [],
+                  events: [],
+                  kind: 1,
+                  name: "smoke.gen",
+                  status: {
+                    code: 1,
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    contentType: "application/json",
+    method: "POST",
+    path: "/",
+  },
+  {
+    body: {
+      resourceSpans: [
+        {
+          resource: {
+            attributes: [
+              {
+                key: "service.name",
+                value: {
+                  stringValue: "test-service",
+                },
+              },
+              {
+                key: "service.version",
+                value: {
+                  stringValue: "0.0.0-test",
+                },
+              },
+            ],
+          },
+          scopeSpans: [
+            {
+              scope: {
+                name: "test",
+              },
+              spans: [
+                {
+                  attributes: [],
+                  events: [
+                    {
+                      attributes: [
+                        {
+                          key: "exception.type",
+                          value: {
+                            stringValue: "Error",
+                          },
+                        },
+                        {
+                          key: "exception.message",
+                          value: {
+                            stringValue: "boom",
+                          },
+                        },
+                        {
+                          key: "exception.stacktrace",
+                          value: {
+                            stringValue: "[stacktrace]",
+                          },
+                        },
+                      ],
+                      name: "exception",
+                    },
+                  ],
+                  kind: 1,
+                  name: "smoke.err",
+                  status: {
+                    code: 2,
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    contentType: "application/json",
+    method: "POST",
+    path: "/",
+  },
+  {
+    body: {
+      resourceSpans: [
+        {
+          resource: {
+            attributes: [
+              {
+                key: "service.name",
+                value: {
+                  stringValue: "test-service",
+                },
+              },
+              {
+                key: "service.version",
+                value: {
+                  stringValue: "0.0.0-test",
+                },
+              },
+            ],
+          },
+          scopeSpans: [
+            {
+              scope: {
+                name: "test",
+              },
+              spans: [
+                {
+                  attributes: [],
+                  events: [
+                    {
+                      attributes: [
+                        {
+                          key: "exception.type",
+                          value: {
+                            stringValue: "Error",
+                          },
+                        },
+                        {
+                          key: "exception.message",
+                          value: {
+                            stringValue: "boom",
+                          },
+                        },
+                        {
+                          key: "exception.stacktrace",
+                          value: {
+                            stringValue: "[stacktrace]",
+                          },
+                        },
+                      ],
+                      name: "exception",
+                    },
+                  ],
+                  kind: 1,
+                  name: "smoke.err-sync",
+                  status: {
+                    code: 2,
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    contentType: "application/json",
+    method: "POST",
+    path: "/",
+  },
+  {
+    body: {
+      resourceSpans: [
+        {
+          resource: {
+            attributes: [
+              {
+                key: "service.name",
+                value: {
+                  stringValue: "test-service",
+                },
+              },
+              {
+                key: "service.version",
+                value: {
+                  stringValue: "0.0.0-test",
+                },
+              },
+            ],
+          },
+          scopeSpans: [
+            {
+              scope: {
+                name: "test",
+              },
+              spans: [
+                {
+                  attributes: [
+                    {
+                      key: "input",
+                      value: {
+                        stringValue: "x",
+                      },
+                    },
+                    {
+                      key: "out",
+                      value: {
+                        intValue: 42,
+                      },
+                    },
+                  ],
+                  events: [],
+                  kind: 1,
+                  name: "smoke.attrs",
+                  status: {
+                    code: 1,
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    contentType: "application/json",
+    method: "POST",
+    path: "/",
+  },
+  {
+    body: {
+      resourceSpans: [
+        {
+          resource: {
+            attributes: [
+              {
+                key: "service.name",
+                value: {
+                  stringValue: "test-service",
+                },
+              },
+              {
+                key: "service.version",
+                value: {
+                  stringValue: "0.0.0-test",
+                },
+              },
+            ],
+          },
+          scopeSpans: [
+            {
+              scope: {
+                name: "test",
+              },
+              spans: [
+                {
+                  attributes: [
+                    {
+                      key: "amount",
+                      value: {
+                        stringValue: "10",
+                      },
+                    },
+                  ],
+                  events: [],
+                  kind: 1,
+                  name: "smoke.bigint",
+                  status: {
+                    code: 1,
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    contentType: "application/json",
+    method: "POST",
+    path: "/",
+  },
+  {
+    body: {
+      resourceSpans: [
+        {
+          resource: {
+            attributes: [
+              {
+                key: "service.name",
+                value: {
+                  stringValue: "test-service",
+                },
+              },
+              {
+                key: "service.version",
+                value: {
+                  stringValue: "0.0.0-test",
+                },
+              },
+            ],
+          },
+          scopeSpans: [
+            {
+              scope: {
+                name: "test",
+              },
+              spans: [
+                {
+                  attributes: [],
+                  events: [],
+                  kind: 1,
+                  name: "Svc.work",
+                  status: {
+                    code: 1,
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    contentType: "application/json",
+    method: "POST",
+    path: "/",
+  },
+  {
+    body: {
+      resourceSpans: [
+        {
+          resource: {
+            attributes: [
+              {
+                key: "service.name",
+                value: {
+                  stringValue: "test-service",
+                },
+              },
+              {
+                key: "service.version",
+                value: {
+                  stringValue: "0.0.0-test",
+                },
+              },
+            ],
+          },
+          scopeSpans: [
+            {
+              scope: {
+                name: "test",
+              },
+              spans: [
+                {
+                  attributes: [
+                    {
+                      key: "input",
+                      value: {
+                        intValue: 21,
+                      },
+                    },
+                    {
+                      key: "output",
+                      value: {
+                        intValue: 42,
+                      },
+                    },
+                  ],
+                  events: [],
+                  kind: 1,
+                  name: "Svc.compute",
+                  status: {
+                    code: 1,
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    contentType: "application/json",
+    method: "POST",
+    path: "/",
+  },
+  {
+    body: {
+      resourceSpans: [
+        {
+          resource: {
+            attributes: [
+              {
+                key: "service.name",
+                value: {
+                  stringValue: "test-service",
+                },
+              },
+              {
+                key: "service.version",
+                value: {
+                  stringValue: "0.0.0-test",
+                },
+              },
+            ],
+          },
+          scopeSpans: [
+            {
+              scope: {
+                name: "test",
+              },
+              spans: [
+                {
+                  attributes: [],
+                  events: [],
+                  kind: 1,
+                  name: "Svc.items",
+                  status: {
+                    code: 1,
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    contentType: "application/json",
+    method: "POST",
+    path: "/",
+  },
+  {
+    body: {
+      resourceSpans: [
+        {
+          resource: {
+            attributes: [
+              {
+                key: "service.name",
+                value: {
+                  stringValue: "test-service",
+                },
+              },
+              {
+                key: "service.version",
+                value: {
+                  stringValue: "0.0.0-test",
+                },
+              },
+            ],
+          },
+          scopeSpans: [
+            {
+              scope: {
+                name: "test-noop",
+              },
+              spans: [
+                {
+                  attributes: [],
+                  events: [],
+                  kind: 1,
+                  name: "noop.test",
+                  status: {
+                    code: 1,
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    contentType: "application/json",
+    method: "POST",
+    path: "/",
+  },
+  {
+    body: {
+      resourceSpans: [
+        {
+          resource: {
+            attributes: [
+              {
+                key: "service.name",
+                value: {
+                  stringValue: "test-service",
+                },
+              },
+              {
+                key: "service.version",
+                value: {
+                  stringValue: "0.0.0-test",
+                },
+              },
+            ],
+          },
+          scopeSpans: [
+            {
+              scope: {
+                name: "test-noop",
+              },
+              spans: [
+                {
+                  attributes: [
+                    {
+                      key: "myAttr",
+                      value: {
+                        stringValue: "hello",
+                      },
+                    },
+                  ],
+                  events: [],
+                  kind: 1,
+                  name: "snapshot.test",
+                  status: {
+                    code: 1,
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    contentType: "application/json",
+    method: "POST",
+    path: "/",
+  },
+]
+`;

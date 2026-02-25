@@ -1,0 +1,15 @@
+{
+  "nodeModulesDir": "auto",
+  "permissions": {
+    "test": {
+      "net": true,
+      "read": true,
+      "write": true,
+      "env": true,
+      "sys": true
+    }
+  },
+  "tasks": {
+    "test": "deno test -P=test src/"
+  }
+}
