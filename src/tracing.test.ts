@@ -422,6 +422,117 @@ describe('smoke tests', () => {
     })
 })
 
+// ─── Dynamic span name tests ──────────────────────────────────────────────
+
+describe('decorator dynamic span name', () => {
+    const collector = new MockCollector()
+    let shutdown: ShutdownTracing
+
+    beforeAll(async () => {
+        await collector.start()
+        shutdown = await initTracing(collector.url)
+    })
+
+    afterAll(async () => {
+        await teardownTracing(shutdown)
+        await collector.stop()
+    })
+
+    function getSpanNames(): string[] {
+        return collector.exports.flatMap((exp) => {
+            const body = exp.body as any
+            return (body?.resourceSpans ?? []).flatMap((rs: any) =>
+                (rs.scopeSpans ?? []).flatMap((ss: any) =>
+                    (ss.spans ?? []).map((s: any) => s.name),
+                ),
+            )
+        })
+    }
+
+    async function flush(): Promise<void> {
+        // deno-lint-ignore no-explicit-any
+        await (trace.getTracerProvider() as any).getDelegate?.().forceFlush?.()
+    }
+
+    it('withTracing uses ClassName.method when name is omitted', async () => {
+        collector.reset()
+        class MyService {
+            @withTracing()
+            async doWork(): Promise<string> { return 'ok' }
+        }
+        assert.equal(await new MyService().doWork(), 'ok')
+        await flush()
+        assert.ok(getSpanNames().includes('MyService.doWork'))
+    })
+
+    it('withTracing uses static string name', async () => {
+        collector.reset()
+        class MyService {
+            @withTracing({ name: 'custom.static.name' })
+            async doWork(): Promise<string> { return 'ok' }
+        }
+        assert.equal(await new MyService().doWork(), 'ok')
+        await flush()
+        assert.ok(getSpanNames().includes('custom.static.name'))
+    })
+
+    it('withTracing uses function name with args', async () => {
+        collector.reset()
+        class MyService {
+            @withTracing<MyService, [string, number], string>({
+                name(_id: string, _n: number) { return `process:${_id}:${_n}` },
+            })
+            async process(id: string, n: number): Promise<string> { return `${id}-${n}` }
+        }
+        const svc = new MyService()
+        assert.equal(await svc.process('abc', 42), 'abc-42')
+        await flush()
+        assert.ok(getSpanNames().includes('process:abc:42'))
+    })
+
+    it('withTracing name function receives correct this', async () => {
+        collector.reset()
+        class MyService {
+            tag = 'mytag'
+            @withTracing<MyService, [string], string>({
+                name(id: string) { return `${this.tag}:${id}` },
+            })
+            async process(id: string): Promise<string> { return id }
+        }
+        assert.equal(await new MyService().process('x'), 'x')
+        await flush()
+        assert.ok(getSpanNames().includes('mytag:x'))
+    })
+
+    it('withTracingGenerator uses function name with args', async () => {
+        collector.reset()
+        class MyService {
+            @withTracingGenerator<MyService, [string], number>({
+                name(prefix: string) { return `gen:${prefix}` },
+            })
+            async *items(prefix: string): AsyncGenerator<number> {
+                void prefix
+                yield 1
+                yield 2
+            }
+        }
+        assert.deepEqual(await collectAsyncGen(new MyService().items('test')), [1, 2])
+        await flush()
+        assert.ok(getSpanNames().includes('gen:test'))
+    })
+
+    it('withTracingGenerator uses static string name', async () => {
+        collector.reset()
+        class MyService {
+            @withTracingGenerator({ name: 'gen.static' })
+            async *items(): AsyncGenerator<number> { yield 1 }
+        }
+        assert.deepEqual(await collectAsyncGen(new MyService().items()), [1])
+        await flush()
+        assert.ok(getSpanNames().includes('gen.static'))
+    })
+})
+
 // ─── Resilience tests ─────────────────────────────────────────────────────────
 
 interface ResilienceScenario {

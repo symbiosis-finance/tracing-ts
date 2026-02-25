@@ -275,7 +275,7 @@ export interface AttributesLike {
 
 /** Options for the {@linkcode withTracing} and {@linkcode withTracingGenerator} decorators. */
 export interface DecoratorOptions<This extends NonNullable<any>, Args extends AnyArgs, Return = void> {
-    name?: string
+    name?: string | ((this: This, ...args: Args) => string)
     onCall?: (this: This, ...args: Args) => AttributesLike
     onReturn?: (this: This, result: Return) => AttributesLike
 }
@@ -294,6 +294,17 @@ function getSpanName<This extends HasConstructor>(owner: This, context: ClassMet
     return `${owner.constructor.name}.${String(context.name)}`
 }
 
+function resolveSpanName<This extends HasConstructor, Args extends AnyArgs>(
+    options: DecoratorOptions<This, Args, any> | undefined,
+    owner: This,
+    context: ClassMethodDecoratorContext<This>,
+    args: Args,
+): string {
+    if (options?.name === undefined) return getSpanName(owner, context)
+    if (typeof options.name === 'function') return options.name.apply(owner, args)
+    return options.name
+}
+
 /** Class method decorator that wraps an async method in a span. */
 export function withTracing<This extends HasConstructor, Args extends AnyArgs, Return>(
     options?: DecoratorOptions<This, Args, Return>,
@@ -309,7 +320,7 @@ export function withTracing<This extends HasConstructor, Args extends AnyArgs, R
             originalMethod &&
             (async function (this: This, ...args: Args): Promise<Return> {
                 return await withSpan(
-                    options?.name ?? getSpanName(this, context),
+                    resolveSpanName(options, this, context, args),
                     options?.onCall ? options.onCall.apply(this, args) : {},
                     () => originalMethod.apply(this, args),
                     options?.onReturn ? options.onReturn.bind(this) : undefined,
@@ -334,7 +345,7 @@ export function withTracingGenerator<This extends HasConstructor, Args extends A
             originalMethod &&
             (async function* (this: This, ...args: Args): AsyncGenerator<YieldT> {
                 return yield* withYieldSpan(
-                    options?.name ?? getSpanName(this, context),
+                    resolveSpanName(options, this, context, args),
                     options?.onCall ? options.onCall.apply(this, args) : {},
                     () => originalMethod.apply(this, args),
                     options?.onReturn ? options.onReturn.bind(this) : undefined,
