@@ -3,6 +3,7 @@ import os from 'node:os'
 import {
     Attributes,
     AttributeValue,
+    context,
     Context,
     Link,
     Span,
@@ -240,7 +241,8 @@ function recordException(span: Span, err: Exclude<unknown, undefined>) {
     if (err instanceof Error) span.recordException(err)
 }
 
-/** Wrap an async generator in a span, yielding values through. */
+/** Wrap an async generator in a span, yielding values through.
+ *  Creates a parent span for the entire generator lifetime and a child span for each iteration. */
 export async function* withYieldSpan<R>(
     name: string,
     attributes: AttributesLike,
@@ -248,16 +250,37 @@ export async function* withYieldSpan<R>(
     successAttrs?: () => AttributesLike,
 ): AsyncGenerator<R> {
     const tracer = getTracer()
-    const span = tracer.startSpan(name, { attributes: convertAttributes(attributes) })
+    const parentSpan = tracer.startSpan(name, { attributes: convertAttributes(attributes) })
+    const parentCtx = trace.setSpan(context.active(), parentSpan)
+    const gen = fn(parentSpan)
     try {
-        yield* fn(span)
-        span.setStatus({ code: SpanStatusCode.OK })
-        if (successAttrs) span.setAttributes(convertAttributes(successAttrs()))
+        let i = 0
+        for (;;) {
+            const iterSpan = tracer.startSpan(`${name}[${i}]`, {}, parentCtx)
+            const iterCtx = trace.setSpan(parentCtx, iterSpan)
+            let result: IteratorResult<R>
+            try {
+                result = await context.with(iterCtx, () => gen.next())
+                iterSpan.setStatus({ code: SpanStatusCode.OK })
+            } catch (err) {
+                recordException(iterSpan, err)
+                throw err
+            } finally {
+                iterSpan.end()
+            }
+            if (result.done) break
+            yield result.value
+            i++
+        }
+        parentSpan.setStatus({ code: SpanStatusCode.OK })
+        if (successAttrs) parentSpan.setAttributes(convertAttributes(successAttrs()))
     } catch (err) {
-        recordException(span, err)
+        recordException(parentSpan, err)
         throw err
     } finally {
-        span.end()
+        // deno-lint-ignore no-explicit-any
+        await gen.return(undefined as any)
+        parentSpan.end()
     }
 }
 

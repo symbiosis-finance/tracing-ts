@@ -533,6 +533,142 @@ describe('decorator dynamic span name', () => {
     })
 })
 
+// ─── withTracingGenerator span hierarchy tests ──────────────────────────────
+
+describe('withTracingGenerator span hierarchy', () => {
+    const collector = new MockCollector()
+    let shutdown: ShutdownTracing
+
+    beforeAll(async () => {
+        await collector.start()
+        shutdown = await initTracing(collector.url)
+    })
+
+    afterAll(async () => {
+        await teardownTracing(shutdown)
+        await collector.stop()
+    })
+
+    /** Extract raw spans from all collected exports. */
+    function getAllSpans(): any[] {
+        return collector.exports.flatMap((exp) => {
+            const body = exp.body as any
+            return (body?.resourceSpans ?? []).flatMap((rs: any) =>
+                (rs.scopeSpans ?? []).flatMap((ss: any) => ss.spans ?? []),
+            )
+        })
+    }
+
+    async function flush(): Promise<void> {
+        // deno-lint-ignore no-explicit-any
+        await (trace.getTracerProvider() as any).getDelegate?.().forceFlush?.()
+    }
+
+    it('creates parent span, iteration child spans, and nests inner spans under iterations', async () => {
+        collector.reset()
+
+        class Svc {
+            @withTracingGenerator()
+            async *items(): AsyncGenerator<number> {
+                await withSpan('inner.work.0', {}, async () => 'a')
+                yield 1
+                await withSpan('inner.work.1', {}, async () => 'b')
+                yield 2
+            }
+        }
+
+        assert.deepEqual(await collectAsyncGen(new Svc().items()), [1, 2])
+        await flush()
+
+        const spans = getAllSpans()
+
+        // Find the parent span for the whole generator
+        const parent = spans.find((s: any) => s.name === 'Svc.items')
+        assert.ok(parent, 'Expected parent span "Svc.items"')
+
+        // Find iteration spans
+        const iter0 = spans.find((s: any) => s.name === 'Svc.items[0]')
+        const iter1 = spans.find((s: any) => s.name === 'Svc.items[1]')
+        assert.ok(iter0, 'Expected iteration span "Svc.items[0]"')
+        assert.ok(iter1, 'Expected iteration span "Svc.items[1]"')
+
+        // Iteration spans are children of the parent
+        assert.equal(iter0.parentSpanId, parent.spanId)
+        assert.equal(iter1.parentSpanId, parent.spanId)
+
+        // All spans share the same trace
+        assert.equal(iter0.traceId, parent.traceId)
+        assert.equal(iter1.traceId, parent.traceId)
+
+        // Inner spans created inside the generator are children of their iteration span
+        const inner0 = spans.find((s: any) => s.name === 'inner.work.0')
+        const inner1 = spans.find((s: any) => s.name === 'inner.work.1')
+        assert.ok(inner0, 'Expected inner span "inner.work.0"')
+        assert.ok(inner1, 'Expected inner span "inner.work.1"')
+
+        assert.equal(inner0.parentSpanId, iter0.spanId, 'inner.work.0 should be child of iteration [0]')
+        assert.equal(inner1.parentSpanId, iter1.spanId, 'inner.work.1 should be child of iteration [1]')
+
+        assert.equal(inner0.traceId, parent.traceId)
+        assert.equal(inner1.traceId, parent.traceId)
+    })
+
+    it('creates an iteration span for the final completion call', async () => {
+        collector.reset()
+
+        class Svc {
+            @withTracingGenerator()
+            async *single(): AsyncGenerator<string> {
+                yield 'only'
+            }
+        }
+
+        assert.deepEqual(await collectAsyncGen(new Svc().single()), ['only'])
+        await flush()
+
+        const spans = getAllSpans()
+        const parent = spans.find((s: any) => s.name === 'Svc.single')
+        assert.ok(parent)
+
+        // iteration [0] yields 'only', iteration [1] completes the generator
+        const iter0 = spans.find((s: any) => s.name === 'Svc.single[0]')
+        const iter1 = spans.find((s: any) => s.name === 'Svc.single[1]')
+        assert.ok(iter0, 'Expected iteration span [0]')
+        assert.ok(iter1, 'Expected final iteration span [1]')
+        assert.equal(iter0.parentSpanId, parent.spanId)
+        assert.equal(iter1.parentSpanId, parent.spanId)
+    })
+
+    it('records error on iteration span and parent when generator throws', async () => {
+        collector.reset()
+
+        class Svc {
+            @withTracingGenerator()
+            async *failing(): AsyncGenerator<number> {
+                yield 1
+                throw new Error('generator failed')
+            }
+        }
+
+        await assert.rejects(
+            () => collectAsyncGen(new Svc().failing()),
+            { message: 'generator failed' },
+        )
+        await flush()
+
+        const spans = getAllSpans()
+        const parent = spans.find((s: any) => s.name === 'Svc.failing')
+        assert.ok(parent)
+        assert.equal(parent.status?.code, 2, 'Parent span should have ERROR status')
+
+        // The iteration that threw should also have error status
+        const errorIter = spans.find(
+            (s: any) => s.name.startsWith('Svc.failing[') && s.status?.code === 2,
+        )
+        assert.ok(errorIter, 'Expected an iteration span with ERROR status')
+    })
+})
+
 // ─── Resilience tests ─────────────────────────────────────────────────────────
 
 interface ResilienceScenario {

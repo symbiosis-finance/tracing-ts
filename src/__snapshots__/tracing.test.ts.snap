@@ -167,6 +167,186 @@ snapshot[`smoke tests > exports spans to collector as JSON 1`] = `
                   attributes: [],
                   events: [],
                   kind: 1,
+                  name: "smoke.gen[0]",
+                  status: {
+                    code: 1,
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    contentType: "application/json",
+    method: "POST",
+    path: "/",
+  },
+  {
+    body: {
+      resourceSpans: [
+        {
+          resource: {
+            attributes: [
+              {
+                key: "service.name",
+                value: {
+                  stringValue: "test-service",
+                },
+              },
+              {
+                key: "service.version",
+                value: {
+                  stringValue: "0.0.0-test",
+                },
+              },
+            ],
+          },
+          scopeSpans: [
+            {
+              scope: {
+                name: "test",
+              },
+              spans: [
+                {
+                  attributes: [],
+                  events: [],
+                  kind: 1,
+                  name: "smoke.gen[1]",
+                  status: {
+                    code: 1,
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    contentType: "application/json",
+    method: "POST",
+    path: "/",
+  },
+  {
+    body: {
+      resourceSpans: [
+        {
+          resource: {
+            attributes: [
+              {
+                key: "service.name",
+                value: {
+                  stringValue: "test-service",
+                },
+              },
+              {
+                key: "service.version",
+                value: {
+                  stringValue: "0.0.0-test",
+                },
+              },
+            ],
+          },
+          scopeSpans: [
+            {
+              scope: {
+                name: "test",
+              },
+              spans: [
+                {
+                  attributes: [],
+                  events: [],
+                  kind: 1,
+                  name: "smoke.gen[2]",
+                  status: {
+                    code: 1,
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    contentType: "application/json",
+    method: "POST",
+    path: "/",
+  },
+  {
+    body: {
+      resourceSpans: [
+        {
+          resource: {
+            attributes: [
+              {
+                key: "service.name",
+                value: {
+                  stringValue: "test-service",
+                },
+              },
+              {
+                key: "service.version",
+                value: {
+                  stringValue: "0.0.0-test",
+                },
+              },
+            ],
+          },
+          scopeSpans: [
+            {
+              scope: {
+                name: "test",
+              },
+              spans: [
+                {
+                  attributes: [],
+                  events: [],
+                  kind: 1,
+                  name: "smoke.gen[3]",
+                  status: {
+                    code: 1,
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    contentType: "application/json",
+    method: "POST",
+    path: "/",
+  },
+  {
+    body: {
+      resourceSpans: [
+        {
+          resource: {
+            attributes: [
+              {
+                key: "service.name",
+                value: {
+                  stringValue: "test-service",
+                },
+              },
+              {
+                key: "service.version",
+                value: {
+                  stringValue: "0.0.0-test",
+                },
+              },
+            ],
+          },
+          scopeSpans: [
+            {
+              scope: {
+                name: "test",
+              },
+              spans: [
+                {
+                  attributes: [],
+                  events: [],
+                  kind: 1,
                   name: "smoke.gen",
                   status: {
                     code: 1,
@@ -519,6 +699,141 @@ snapshot[`smoke tests > exports spans to collector as JSON 1`] = `
                   events: [],
                   kind: 1,
                   name: "Svc.compute",
+                  status: {
+                    code: 1,
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    contentType: "application/json",
+    method: "POST",
+    path: "/",
+  },
+  {
+    body: {
+      resourceSpans: [
+        {
+          resource: {
+            attributes: [
+              {
+                key: "service.name",
+                value: {
+                  stringValue: "test-service",
+                },
+              },
+              {
+                key: "service.version",
+                value: {
+                  stringValue: "0.0.0-test",
+                },
+              },
+            ],
+          },
+          scopeSpans: [
+            {
+              scope: {
+                name: "test",
+              },
+              spans: [
+                {
+                  attributes: [],
+                  events: [],
+                  kind: 1,
+                  name: "Svc.items[0]",
+                  status: {
+                    code: 1,
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    contentType: "application/json",
+    method: "POST",
+    path: "/",
+  },
+  {
+    body: {
+      resourceSpans: [
+        {
+          resource: {
+            attributes: [
+              {
+                key: "service.name",
+                value: {
+                  stringValue: "test-service",
+                },
+              },
+              {
+                key: "service.version",
+                value: {
+                  stringValue: "0.0.0-test",
+                },
+              },
+            ],
+          },
+          scopeSpans: [
+            {
+              scope: {
+                name: "test",
+              },
+              spans: [
+                {
+                  attributes: [],
+                  events: [],
+                  kind: 1,
+                  name: "Svc.items[1]",
+                  status: {
+                    code: 1,
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    contentType: "application/json",
+    method: "POST",
+    path: "/",
+  },
+  {
+    body: {
+      resourceSpans: [
+        {
+          resource: {
+            attributes: [
+              {
+                key: "service.name",
+                value: {
+                  stringValue: "test-service",
+                },
+              },
+              {
+                key: "service.version",
+                value: {
+                  stringValue: "0.0.0-test",
+                },
+              },
+            ],
+          },
+          scopeSpans: [
+            {
+              scope: {
+                name: "test",
+              },
+              spans: [
+                {
+                  attributes: [],
+                  events: [],
+                  kind: 1,
+                  name: "Svc.items[2]",
                   status: {
                     code: 1,
                   },
