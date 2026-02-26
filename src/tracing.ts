@@ -101,6 +101,8 @@ export interface TracingInitOptions {
     tracerName: string
     config: TracingConfig
     spanFilter?: SpanFilter
+    /** Additional span processors injected by the caller (e.g. file exporter). */
+    extraProcessors?: SpanProcessor[]
 }
 
 let _tracerName = 'uninitialized'
@@ -158,6 +160,7 @@ export async function configureTracing(options: TracingInitOptions): Promise<Shu
             config.processor === 'simple' ? new SimpleSpanProcessor(exporter) : new BatchSpanProcessor(exporter)
         spanProcessors.push(new TraceIDLogger(proc))
     }
+    if (options.extraProcessors) spanProcessors.push(...options.extraProcessors)
     const resource = detectResources({ detectors: [] })
     if (resource.waitForAsyncAttributes) await resource.waitForAsyncAttributes()
     const mutedSpans = new Set(config.mutedSpans)
