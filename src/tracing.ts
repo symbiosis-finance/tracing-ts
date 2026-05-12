@@ -356,6 +356,38 @@ export function withTracing<This extends HasConstructor, Args extends AnyArgs, R
     }
 }
 
+/** Class method decorator that wraps an async method in a new ROOT span (no parent),
+ *  regardless of any ambient OpenTelemetry context. Use on pipeline entry points where one
+ *  trace per call is the right granularity — e.g. cache-miss factories or decision resolvers
+ *  driven by a long-running loop, where inheriting whatever parent happened to be active
+ *  would conflate unrelated work. Behaves like {@linkcode withTracing} otherwise. */
+export function withRootTracing<This extends HasConstructor, Args extends AnyArgs, Return>(
+    options?: DecoratorOptions<This, Args, Return>,
+): (
+    originalMethod: AsyncMethod<This, Args, Return> | undefined,
+    context: ClassMethodDecoratorContext<This, AsyncMethod<This, Args, Return>>,
+) => AsyncMethod<This, Args, Return> | undefined {
+    return function (
+        originalMethod: AsyncMethod<This, Args, Return> | undefined,
+        context: ClassMethodDecoratorContext<This, AsyncMethod<This, Args, Return>>,
+    ) {
+        return (
+            originalMethod &&
+            (async function (this: This, ...args: Args): Promise<Return> {
+                return await withSpanImpl(
+                    resolveSpanName(options, this, context, args),
+                    {
+                        attributes: convertAttributes(options?.onCall ? options.onCall.apply(this, args) : {}),
+                        root: true,
+                    },
+                    () => originalMethod.apply(this, args),
+                    options?.onReturn ? options.onReturn.bind(this) : undefined,
+                )
+            } as AsyncMethod<This, Args, Return>)
+        )
+    }
+}
+
 /** Class method decorator that wraps an async generator method in a span. */
 export function withTracingGenerator<This extends HasConstructor, Args extends AnyArgs, YieldT>(
     options?: DecoratorOptions<This, Args>,

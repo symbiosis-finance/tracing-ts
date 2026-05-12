@@ -4,7 +4,8 @@
  * Provides one-call setup via {@linkcode configureTracing}, span helpers
  * ({@linkcode withSpan}, {@linkcode withSpanSync}, {@linkcode withRootSpan},
  * {@linkcode withYieldSpan}), and class method decorators
- * ({@linkcode withTracing}, {@linkcode withTracingGenerator}) with automatic
+ * ({@linkcode withTracing}, {@linkcode withRootTracing},
+ * {@linkcode withTracingGenerator}) with automatic
  * error recording and BigInt serialisation.
  *
  * @example
@@ -29,6 +30,7 @@ export {
     getVersion,
     tracingConfigSchema,
     withRootSpan,
+    withRootTracing,
     withSpan,
     withSpanSync,
     withTracing,
