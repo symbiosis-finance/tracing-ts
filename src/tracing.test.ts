@@ -213,7 +213,7 @@ function sanitizeAttributes(attrs: any[]): unknown[] {
 // ─── Resilience assertion suite ───────────────────────────────────────────────
 
 async function assertTracingIsTransparent(): Promise<void> {
-    const asyncResult = await withSpan('test.async', { key: 'value' }, async () => 42)
+    const asyncResult = await withSpan('test.async', { attrs: { key: 'value' } }, async () => 42)
     assert.equal(asyncResult, 42)
 
     const syncResult = withSpanSync('test.sync', {}, () => 42)
@@ -247,7 +247,7 @@ async function assertTracingIsTransparent(): Promise<void> {
         { message: 'expected-sync' },
     )
 
-    const bigintResult = await withSpan('test.bigint', { amount: 1000000000000000000n }, async () => 'ok')
+    const bigintResult = await withSpan('test.bigint', { attrs: { amount: 1000000000000000000n } }, async () => 'ok')
     assert.equal(bigintResult, 'ok')
 
     class Svc {
@@ -332,13 +332,17 @@ describe('smoke tests', () => {
         )
     })
 
-    it('withSpan supports success attributes', async () => {
-        const result = await withSpan('smoke.attrs', { input: 'x' }, async () => 42, (r) => ({ out: r }))
+    it('withSpan supports success attributes via onReturn', async () => {
+        const result = await withSpan(
+            'smoke.attrs',
+            { attrs: { input: 'x' }, onReturn: (r) => ({ out: r }) },
+            async () => 42,
+        )
         assert.equal(result, 42)
     })
 
     it('withSpan handles bigint attributes', async () => {
-        const result = await withSpan('smoke.bigint', { amount: 10n }, async () => 'ok')
+        const result = await withSpan('smoke.bigint', { attrs: { amount: 10n } }, async () => 'ok')
         assert.equal(result, 'ok')
     })
 
@@ -412,7 +416,7 @@ describe('smoke tests', () => {
     it('exports spans to collector as JSON', async (t) => {
         collector.reset()
 
-        await withSpan('snapshot.test', { myAttr: 'hello' }, async () => 'ok')
+        await withSpan('snapshot.test', { attrs: { myAttr: 'hello' } }, async () => 'ok')
         // Flush pending exports so the mock server receives them before we assert.
         // deno-lint-ignore no-explicit-any
         await (trace.getTracerProvider() as any).getDelegate?.().forceFlush?.()

@@ -18,7 +18,7 @@
  *   config: tracingConfigSchema.parse({ http: { url: "http://localhost:4318/v1/traces" } }),
  * });
  *
- * const result = await withSpan("my-operation", { key: "value" }, async () => {
+ * const result = await withSpan("my-operation", { attrs: { key: "value" } }, async () => {
  *   return 42;
  * });
  * ```
@@ -37,6 +37,8 @@ export {
     withTracingGenerator,
     withYieldSpan,
 } from './tracing.ts'
+
+export type { WithSpanOpts } from './tracing.ts'
 
 export type {
     AnyArgs,

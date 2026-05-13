@@ -1,6 +1,6 @@
 {
   "name": "@symbiosis-finance/tracing",
-  "version": "1.1.0",
+  "version": "2.0.0",
   "exports": { ".": "./src/index.ts" },
   "publish": {
     "exclude": ["node_modules/", "src/**/*.test.ts", "src/__snapshots__/", ".claude/", ".github/"]

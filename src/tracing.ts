@@ -258,19 +258,35 @@ export function withSpanSync<R>(name: string, options: SpanOptions, fn: (span: S
     })
 }
 
-/** Execute an async function inside a new root span (no parent). */
-export function withRootSpan<R>(name: string, attributes: Attributes, fn: (span: Span) => Promise<R>): Promise<R> {
-    return withSpanImpl(name, { attributes, root: true }, fn)
+/** Options accepted by {@linkcode withSpan} (and superset {@linkcode withRootSpan}).
+ *  All fields are optional — pass `{}` for a span with no attributes/links/onReturn. */
+export interface WithSpanOpts<R> {
+    /** Span attributes. `bigint` values are serialised to strings via {@linkcode serializeBigInts}. */
+    attrs?: AttributesLike
+    /** Span links — typically used by background producers (poll loops, push subscribers) to
+     *  point at the parent operations they unblock, so the parent traces show what woke them. */
+    links?: Link[]
+    /** Called only when `fn` resolves (not on throw). Returned attributes are merged into the span. */
+    onReturn?: (r: R) => AttributesLike
 }
 
-/** Execute an async function inside a new span with optional success attributes. */
+/** Execute an async function inside a new root span (no parent). `links` and `onReturn` are
+ *  honoured the same as in {@linkcode withSpan}. */
+export function withRootSpan<R>(
+    name: string,
+    opts: WithSpanOpts<R>,
+    fn: (span: Span) => Promise<R>,
+): Promise<R> {
+    return withSpanImpl(name, { ...opts, root: true }, fn)
+}
+
+/** Execute an async function inside a new span. */
 export function withSpan<R>(
     name: string,
-    attributes: AttributesLike,
+    opts: WithSpanOpts<R>,
     fn: (span: Span) => Promise<R>,
-    successAttrs?: (r: R) => AttributesLike,
 ): Promise<R> {
-    return withSpanImpl(name, { attributes: convertAttributes(attributes) }, fn, successAttrs)
+    return withSpanImpl(name, opts, fn)
 }
 
 function recordException(span: Span, err: Exclude<unknown, undefined>) {
@@ -390,9 +406,11 @@ export function withTracing<This extends HasConstructor, Args extends AnyArgs, R
             (async function (this: This, ...args: Args): Promise<Return> {
                 return await withSpan(
                     resolveSpanName(options, this, context, args),
-                    options?.onCall ? options.onCall.apply(this, args) : {},
+                    {
+                        attrs: options?.onCall ? options.onCall.apply(this, args) : {},
+                        onReturn: options?.onReturn ? options.onReturn.bind(this) : undefined,
+                    },
                     () => originalMethod.apply(this, args),
-                    options?.onReturn ? options.onReturn.bind(this) : undefined,
                 )
             } as AsyncMethod<This, Args, Return>)
         )
@@ -420,11 +438,11 @@ export function withRootTracing<This extends HasConstructor, Args extends AnyArg
                 return await withSpanImpl(
                     resolveSpanName(options, this, context, args),
                     {
-                        attributes: convertAttributes(options?.onCall ? options.onCall.apply(this, args) : {}),
+                        attrs: options?.onCall ? options.onCall.apply(this, args) : {},
                         root: true,
+                        onReturn: options?.onReturn ? options.onReturn.bind(this) : undefined,
                     },
                     () => originalMethod.apply(this, args),
-                    options?.onReturn ? options.onReturn.bind(this) : undefined,
                 )
             } as AsyncMethod<This, Args, Return>)
         )
@@ -456,18 +474,22 @@ export function withTracingGenerator<This extends HasConstructor, Args extends A
     }
 }
 
-function withSpanImpl<R>(
-    name: string,
-    options: SpanOptions,
-    fn: (span: Span) => Promise<R>,
-    successAttrs?: (result: R) => AttributesLike,
-): Promise<R> {
+interface WithSpanImplOpts<R> extends WithSpanOpts<R> {
+    root?: boolean
+}
+
+function withSpanImpl<R>(name: string, opts: WithSpanImplOpts<R>, fn: (span: Span) => Promise<R>): Promise<R> {
     const tracer = getTracer()
-    return tracer.startActiveSpan(name, options, async (span: Span) => {
+    const spanOpts: SpanOptions = {
+        attributes: convertAttributes(opts.attrs ?? {}),
+        links: opts.links,
+        root: opts.root,
+    }
+    return tracer.startActiveSpan(name, spanOpts, async (span: Span) => {
         try {
             const result = await fn(span)
             span.setStatus({ code: SpanStatusCode.OK })
-            if (successAttrs) span.setAttributes(convertAttributes(successAttrs(result)))
+            if (opts.onReturn) span.setAttributes(convertAttributes(opts.onReturn(result)))
             return result
         } catch (err) {
             recordException(span, err)
