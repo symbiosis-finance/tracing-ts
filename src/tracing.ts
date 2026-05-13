@@ -96,8 +96,8 @@ export const tracingConfigSchema: z.ZodType<TracingConfig, TracingConfigInput> =
 })
 /** Predicate that decides whether a span should be sampled. Return `true` to mute. */
 export type SpanFilter = (spanName: string) => boolean
-/** Flushes pending spans and shuts down the tracer provider. */
-export type ShutdownTracing = () => Promise<void>
+/** Flushes pending spans and shuts down the tracer provider. Callable directly or via `await using`. */
+export type ShutdownTracing = (() => Promise<void>) & AsyncDisposable
 
 /** Options for {@linkcode configureTracing}. */
 export interface TracingInitOptions {
@@ -246,10 +246,11 @@ export async function configureTracing(options: TracingInitOptions): Promise<Shu
     })
     provider.register()
     logger.info('tracing initialized', { config, resource: res.attributes })
-    return async () => {
+    const shutdown = async () => {
         await provider.forceFlush()
         await provider.shutdown()
     }
+    return Object.assign(shutdown, { [Symbol.asyncDispose]: shutdown }) satisfies ShutdownTracing
 }
 
 /** Execute a synchronous function inside a new span. */

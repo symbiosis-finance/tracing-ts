@@ -1221,6 +1221,136 @@ describe('withRootTracing decorator', () => {
     })
 })
 
+// ─── Generator decorator onReturn ────────────────────────────────────────────
+
+describe('withTracingGenerator onReturn', () => {
+    it('merges onReturn-derived attributes onto the parent span after the generator completes', async () => {
+        const collector = new MockCollector()
+        await collector.start()
+        const shutdown = await initTracing(collector.url)
+        try {
+            class Svc {
+                count = 0
+                @withTracingGenerator<Svc, [], number>({
+                    onReturn() {
+                        return { totalYielded: this.count }
+                    },
+                })
+                async *items(): AsyncGenerator<number> {
+                    yield 1
+                    this.count++
+                    yield 2
+                    this.count++
+                }
+            }
+            assert.deepEqual(await collectAsyncGen(new Svc().items()), [1, 2])
+            await flushTracer()
+
+            const parent = getAllSpans(collector).find((s) => s.name === 'Svc.items')
+            assert.ok(parent)
+            const attr = (parent.attributes ?? []).find((a) => a.key === 'totalYielded')
+            assert.equal(attr?.value.intValue?.toString(), '2')
+        } finally {
+            await teardownTracing(shutdown)
+            await collector.stop()
+        }
+    })
+})
+
+// ─── withRootTracing without onReturn ───────────────────────────────────────
+
+describe('withRootTracing without onReturn', () => {
+    it('runs and returns a root span when neither onCall nor onReturn is set', async () => {
+        const collector = new MockCollector()
+        await collector.start()
+        const shutdown = await initTracing(collector.url)
+        try {
+            class Svc {
+                @withRootTracing()
+                async ping(): Promise<string> {
+                    return 'pong'
+                }
+            }
+            await withSpan('parent.caller', {}, async () => {
+                assert.equal(await new Svc().ping(), 'pong')
+            })
+            await flushTracer()
+
+            const decorated = getAllSpans(collector).find((s) => s.name === 'Svc.ping')
+            assert.ok(decorated)
+            assert.equal(decorated.parentSpanId, undefined)
+        } finally {
+            await teardownTracing(shutdown)
+            await collector.stop()
+        }
+    })
+})
+
+// ─── enableConsole exporter ─────────────────────────────────────────────────
+
+// ─── AsyncDisposable shutdown ────────────────────────────────────────────────
+
+describe('configureTracing AsyncDisposable', () => {
+    it('shuts down via `await using` and is still callable directly', async () => {
+        const collector = new MockCollector()
+        await collector.start()
+        try {
+            {
+                await using shutdown = await configureTracing({
+                    serviceName: 'test-disposable',
+                    tracerName: 'test',
+                    config: tracingConfigSchema.parse({
+                        processor: 'simple',
+                        http: { url: collector.url, timeoutMillis: 500 },
+                    }),
+                })
+                assert.equal(typeof shutdown, 'function')
+                assert.equal(typeof shutdown[Symbol.asyncDispose], 'function')
+                await withSpan('disposable.test', {}, async () => 1)
+            }
+            // After block exit, Symbol.asyncDispose has run — forcing the simple processor to flush.
+            assert.ok(collector.exports.length > 0, 'spans must be exported on dispose')
+        } finally {
+            trace.disable()
+            await collector.stop()
+        }
+    })
+})
+
+describe('enableConsole', () => {
+    it('wires a ConsoleSpanExporter without affecting span flow', async () => {
+        // ConsoleSpanExporter writes via `console.dir`; intercept it to verify the span shows up.
+        const g = globalThis as unknown as {
+            console: { dir: (obj: unknown, opts?: unknown) => void }
+        }
+        const originalDir = g.console.dir
+        const captured: unknown[] = []
+        g.console.dir = (obj: unknown) => {
+            captured.push(obj)
+        }
+        try {
+            const shutdown = await configureTracing({
+                serviceName: 'test-console',
+                tracerName: 'test',
+                config: tracingConfigSchema.parse({ processor: 'simple', enableConsole: true }),
+            })
+            try {
+                const result = await withSpan('console.test', { attrs: { hello: 'world' } }, async () => 42)
+                assert.equal(result, 42)
+            } finally {
+                await teardownTracing(shutdown)
+            }
+            const matched = captured.find(
+                (obj): obj is { name: string } =>
+                    typeof obj === 'object' && obj !== null && (obj as { name?: unknown }).name === 'console.test',
+            )
+            assert.ok(matched, 'ConsoleSpanExporter should have printed the span via console.dir')
+        } finally {
+            g.console.dir = originalDir
+        }
+    })
+})
+
 describe('minSpanDurationUs filtering', () => {
     it('filters short spans when minSpanDurationUs is set', async () => {
         const collector = new MockCollector()

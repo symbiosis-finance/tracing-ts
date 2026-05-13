@@ -18,7 +18,10 @@
   "tasks": {
     "test": "deno test -P=test src/",
     "lint": "deno fmt --check src/ && deno lint src/ && deno check src/",
-    "fmt": "deno fmt src/"
+    "fmt": "deno fmt src/",
+    "coverage:gen": "rm -rf coverage && deno test -P=test --coverage=coverage src/",
+    "coverage": "deno task coverage:gen && deno coverage coverage/ --exclude='_test\\.ts$|\\.test\\.ts$'",
+    "coverage:html": "deno task coverage:gen && deno coverage coverage/ --html --exclude='_test\\.ts$|\\.test\\.ts$'"
   },
   "fmt": {
     "include": ["src/"],
