@@ -93,6 +93,7 @@ The `tracingConfigSchema` (Zod) accepts:
 | `http.timeoutMillis`| `number`                    | —         | Export timeout                     |
 | `enableConsole`     | `boolean`                   | `false`   | Also log spans to console          |
 | `processor`         | `"simple" \| "batch"`       | `"batch"` | Span processor type                |
+| `minSpanDurationUs` | `number`                    | `0`       | Drop spans shorter than threshold (microseconds) |
 | `resourceAttributes`| `Map<string, string>`       | `{}`      | Extra OTEL resource attributes     |
 | `mutedSpans`        | `string[]`                  | `[]`      | Span names to drop via sampler     |
 

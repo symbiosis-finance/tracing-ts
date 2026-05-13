@@ -1,9 +1,11 @@
 /// <reference lib="deno.ns" />
 import { describe, it, beforeAll, afterAll } from 'jsr:@std/testing/bdd'
 import { assertSnapshot } from 'jsr:@std/testing/snapshot'
+import { FakeTime } from 'jsr:@std/testing/time'
 import assert from 'node:assert/strict'
 import { Buffer } from 'node:buffer'
 import { createServer, type Server, type IncomingMessage, type ServerResponse } from 'node:http'
+import { setTimeout as delaySetTimeout } from 'node:timers'
 import { trace } from '@opentelemetry/api'
 import {
     configureTracing,
@@ -404,6 +406,7 @@ describe('smoke tests', () => {
         assert.equal(config.enableConsole, true)
         assert.equal(config.processor, 'batch')
         assert.deepEqual(config.mutedSpans, ['health.check'])
+        assert.equal(config.minSpanDurationUs, 0)
     })
 
     it('exports spans to collector as JSON', async (t) => {
@@ -803,6 +806,50 @@ describe('resilience: slow endpoint does not add latency', () => {
 
         assert.equal(result, 42)
         assert.ok(elapsed < 1000, `Expected <1s but took ${elapsed.toFixed(0)}ms`)
+    })
+})
+
+describe('minSpanDurationUs filtering', () => {
+    it('filters short spans when minSpanDurationUs is set', async () => {
+        const collector = new MockCollector()
+        await collector.start()
+        const shutdown = await configureTracing({
+            serviceName: 'test-service',
+            serviceVersion: '0.0.0-test',
+            tracerName: 'test',
+            config: tracingConfigSchema.parse({
+                processor: 'simple',
+                http: { url: collector.url, timeoutMillis: 500 },
+                minSpanDurationUs: 100_000,
+            }),
+        })
+
+        const time = new FakeTime()
+        try {
+            await withSpan('short.span', {}, async () => {})
+            await withSpan('long.span', {}, async () => {
+                const sleep = new Promise<void>((resolve) => delaySetTimeout(resolve, 150))
+                await time.tickAsync(150)
+                await sleep
+            })
+            // deno-lint-ignore no-explicit-any
+            await (trace.getTracerProvider() as any).getDelegate?.().forceFlush?.()
+
+            const spanNames = collector.exports.flatMap((exp) => {
+                const body = exp.body as any
+                return (body?.resourceSpans ?? []).flatMap((rs: any) =>
+                    (rs.scopeSpans ?? []).flatMap((ss: any) =>
+                        (ss.spans ?? []).map((s: any) => s.name),
+                    ),
+                )
+            })
+            assert.ok(spanNames.includes('long.span'))
+            assert.ok(!spanNames.includes('short.span'))
+        } finally {
+            time.restore()
+            await teardownTracing(shutdown)
+            await collector.stop()
+        }
     })
 })
 

@@ -52,6 +52,7 @@ export interface TracingConfig {
     }
     resourceAttributes: Map<string, string>
     mutedSpans: string[]
+    minSpanDurationUs: number
 }
 
 interface TracingConfigInput {
@@ -68,6 +69,7 @@ interface TracingConfigInput {
     }
     resourceAttributes?: Map<string, string>
     mutedSpans?: string[]
+    minSpanDurationUs?: number
 }
 
 /** Zod schema that validates and provides defaults for {@linkcode TracingConfig}. */
@@ -89,6 +91,7 @@ export const tracingConfigSchema: z.ZodType<TracingConfig, TracingConfigInput> =
         .optional(),
     resourceAttributes: z.map(z.string(), z.string()).default(new Map()),
     mutedSpans: z.array(z.string()).default([]),
+    minSpanDurationUs: z.number().min(0).default(0),
 })
 /** Predicate that decides whether a span should be sampled. Return `true` to mute. */
 export type SpanFilter = (spanName: string) => boolean
@@ -138,13 +141,48 @@ class TraceIDLogger implements SpanProcessor {
     }
 }
 
+function spanDurationUs(span: ReadableSpan): number {
+    const [seconds, nanoseconds] = span.duration as [number, number]
+    return seconds * 1_000_000 + nanoseconds / 1_000
+}
+
+class MinDurationSpanProcessor implements SpanProcessor {
+    constructor(
+        private upstream: SpanProcessor,
+        private minSpanDurationUs: number,
+    ) {}
+
+    forceFlush(): Promise<void> {
+        return this.upstream.forceFlush()
+    }
+
+    onStart(span: SdkSpan, parentContext: Context): void {
+        this.upstream.onStart(span, parentContext)
+    }
+
+    onEnd(span: ReadableSpan): void {
+        const hasException = span.events.some((event) => event.name === 'exception')
+        if (spanDurationUs(span) >= this.minSpanDurationUs || span.status.code === SpanStatusCode.ERROR || hasException)
+            this.upstream.onEnd(span)
+    }
+
+    shutdown(): Promise<void> {
+        return this.upstream.shutdown()
+    }
+}
+
 /** Initialise OpenTelemetry tracing. Returns a shutdown function that flushes and tears down the provider. */
 export async function configureTracing(options: TracingInitOptions): Promise<ShutdownTracing> {
     _tracerName = options.tracerName
     const config = options.config
+    const minSpanDurationUs = config.minSpanDurationUs ?? 0
     let spanFilter = options.spanFilter
     const spanProcessors = [] as SpanProcessor[]
-    if (config.enableConsole) spanProcessors.push(new SimpleSpanProcessor(new ConsoleSpanExporter()))
+    const withMinDurationFilter = (processor: SpanProcessor): SpanProcessor => {
+        if (minSpanDurationUs <= 0) return processor
+        return new MinDurationSpanProcessor(processor, minSpanDurationUs)
+    }
+    if (config.enableConsole) spanProcessors.push(withMinDurationFilter(new SimpleSpanProcessor(new ConsoleSpanExporter())))
     if (config.http) {
         const headers = { ...config.http.headers }
         if (config.http.auth) {
@@ -159,9 +197,9 @@ export async function configureTracing(options: TracingInitOptions): Promise<Shu
         })
         const proc =
             config.processor === 'simple' ? new SimpleSpanProcessor(exporter) : new BatchSpanProcessor(exporter)
-        spanProcessors.push(new TraceIDLogger(proc))
+        spanProcessors.push(new TraceIDLogger(withMinDurationFilter(proc)))
     }
-    if (options.extraProcessors) spanProcessors.push(...options.extraProcessors)
+    if (options.extraProcessors) spanProcessors.push(...options.extraProcessors.map(withMinDurationFilter))
     const resource = detectResources({ detectors: [] })
     if (resource.waitForAsyncAttributes) await resource.waitForAsyncAttributes()
     const mutedSpans = new Set(config.mutedSpans)
