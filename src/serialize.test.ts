@@ -1,4 +1,4 @@
-import { describe, it } from 'jsr:@std/testing/bdd'
+import { describe, it } from '@std/testing/bdd'
 import assert from 'node:assert/strict'
 import { serializeBigInts } from './serialize.ts'
 

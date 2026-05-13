@@ -1,14 +1,15 @@
 import { readFileSync } from 'node:fs'
 import os from 'node:os'
+import process from 'node:process'
 import {
-    Attributes,
-    AttributeValue,
+    type Attributes,
+    type AttributeValue,
     context,
-    Context,
-    Link,
-    Span,
-    SpanKind,
-    SpanOptions,
+    type Context,
+    type Link,
+    type Span,
+    type SpanKind,
+    type SpanOptions,
     SpanStatusCode,
     trace,
 } from '@opentelemetry/api'
@@ -16,12 +17,12 @@ import {
     BatchSpanProcessor,
     ConsoleSpanExporter,
     NodeTracerProvider,
-    ReadableSpan,
+    type ReadableSpan,
     SamplingDecision,
-    SamplingResult,
+    type SamplingResult,
     SimpleSpanProcessor,
-    Span as SdkSpan,
-    SpanProcessor,
+    type Span as SdkSpan,
+    type SpanProcessor,
 } from '@opentelemetry/sdk-trace-node'
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http'
 import { detectResources, resourceFromAttributes } from '@opentelemetry/resources'
@@ -130,9 +131,13 @@ class TraceIDLogger implements SpanProcessor {
     onEnd(span: ReadableSpan): void {
         if (span.parentSpanContext === undefined) {
             const traceid = span.spanContext().traceId
-            if (span.events.length === 0 || span.events[0].name !== 'exception')
+            if (span.events.length === 0 || span.events[0].name !== 'exception') {
                 logger.info('trace ended', { traceid, rootSpan: span.name })
-            else logger.warning('trace error', { traceid, rootSpan: span.name, attributes: span.events[0].attributes })
+            } else {logger.warning('trace error', {
+                    traceid,
+                    rootSpan: span.name,
+                    attributes: span.events[0].attributes,
+                })}
         }
         this.upstream.onEnd(span)
     }
@@ -162,8 +167,11 @@ class MinDurationSpanProcessor implements SpanProcessor {
 
     onEnd(span: ReadableSpan): void {
         const hasException = span.events.some((event) => event.name === 'exception')
-        if (spanDurationUs(span) >= this.minSpanDurationUs || span.status.code === SpanStatusCode.ERROR || hasException)
+        if (
+            spanDurationUs(span) >= this.minSpanDurationUs || span.status.code === SpanStatusCode.ERROR || hasException
+        ) {
             this.upstream.onEnd(span)
+        }
     }
 
     shutdown(): Promise<void> {
@@ -182,7 +190,9 @@ export async function configureTracing(options: TracingInitOptions): Promise<Shu
         if (minSpanDurationUs <= 0) return processor
         return new MinDurationSpanProcessor(processor, minSpanDurationUs)
     }
-    if (config.enableConsole) spanProcessors.push(withMinDurationFilter(new SimpleSpanProcessor(new ConsoleSpanExporter())))
+    if (config.enableConsole) {
+        spanProcessors.push(withMinDurationFilter(new SimpleSpanProcessor(new ConsoleSpanExporter())))
+    }
     if (config.http) {
         const headers = { ...config.http.headers }
         if (config.http.auth) {
@@ -195,8 +205,9 @@ export async function configureTracing(options: TracingInitOptions): Promise<Shu
             timeoutMillis: config.http.timeoutMillis,
             keepAlive: false, // Required for tests — the HTTP agent's connection pool leaks TCP sockets past shutdown().
         })
-        const proc =
-            config.processor === 'simple' ? new SimpleSpanProcessor(exporter) : new BatchSpanProcessor(exporter)
+        const proc = config.processor === 'simple'
+            ? new SimpleSpanProcessor(exporter)
+            : new BatchSpanProcessor(exporter)
         spanProcessors.push(new TraceIDLogger(withMinDurationFilter(proc)))
     }
     if (options.extraProcessors) spanProcessors.push(...options.extraProcessors.map(withMinDurationFilter))
@@ -206,12 +217,12 @@ export async function configureTracing(options: TracingInitOptions): Promise<Shu
     spanFilter = spanFilter ?? ((spanName: string) => mutedSpans.has(spanName))
     const sampler = {
         shouldSample: (
-            context: Context,
-            traceId: string,
+            _context: Context,
+            _traceId: string,
             spanName: string,
-            spanKind: SpanKind,
-            attributes: Attributes,
-            links: Link[],
+            _spanKind: SpanKind,
+            _attributes: Attributes,
+            _links: Link[],
         ): SamplingResult => {
             return {
                 decision: spanFilter(spanName) ? SamplingDecision.NOT_RECORD : SamplingDecision.RECORD_AND_SAMPLED,
@@ -337,15 +348,13 @@ export async function* withYieldSpan<R>(
         recordException(parentSpan, err)
         throw err
     } finally {
-        // deno-lint-ignore no-explicit-any
-        await gen.return(undefined as any)
+        await gen.return(undefined as never)
         parentSpan.end()
     }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 /** Shorthand for an arbitrary argument list. */
-export type AnyArgs = any[]
+export type AnyArgs = unknown[]
 /** An async method signature used by {@linkcode withTracing}. */
 export type AsyncMethod<This, Args extends AnyArgs, Return> = (this: This, ...args: Args) => Promise<Return>
 /** A method signature used by {@linkcode withTracingGenerator}. */
@@ -359,7 +368,7 @@ export interface AttributesLike {
 }
 
 /** Options for the {@linkcode withTracing} and {@linkcode withTracingGenerator} decorators. */
-export interface DecoratorOptions<This extends NonNullable<any>, Args extends AnyArgs, Return = void> {
+export interface DecoratorOptions<This, Args extends AnyArgs, Return = void> {
     name?: string | ((this: This, ...args: Args) => string)
     onCall?: (this: This, ...args: Args) => AttributesLike
     onReturn?: (this: This, result: Return) => AttributesLike
@@ -380,14 +389,14 @@ function getSpanName<This extends HasConstructor>(owner: This, context: ClassMet
 }
 
 function resolveSpanName<This extends HasConstructor, Args extends AnyArgs>(
-    options: DecoratorOptions<This, Args, any> | undefined,
+    nameOpt: string | ((this: This, ...args: Args) => string) | undefined,
     owner: This,
     context: ClassMethodDecoratorContext<This>,
     args: Args,
 ): string {
-    if (options?.name === undefined) return getSpanName(owner, context)
-    if (typeof options.name === 'function') return options.name.apply(owner, args)
-    return options.name
+    if (nameOpt === undefined) return getSpanName(owner, context)
+    if (typeof nameOpt === 'function') return nameOpt.apply(owner, args)
+    return nameOpt
 }
 
 /** Class method decorator that wraps an async method in a span. */
@@ -405,7 +414,7 @@ export function withTracing<This extends HasConstructor, Args extends AnyArgs, R
             originalMethod &&
             (async function (this: This, ...args: Args): Promise<Return> {
                 return await withSpan(
-                    resolveSpanName(options, this, context, args),
+                    resolveSpanName(options?.name, this, context, args),
                     {
                         attrs: options?.onCall ? options.onCall.apply(this, args) : {},
                         onReturn: options?.onReturn ? options.onReturn.bind(this) : undefined,
@@ -436,7 +445,7 @@ export function withRootTracing<This extends HasConstructor, Args extends AnyArg
             originalMethod &&
             (async function (this: This, ...args: Args): Promise<Return> {
                 return await withSpanImpl(
-                    resolveSpanName(options, this, context, args),
+                    resolveSpanName(options?.name, this, context, args),
                     {
                         attrs: options?.onCall ? options.onCall.apply(this, args) : {},
                         root: true,
@@ -464,7 +473,7 @@ export function withTracingGenerator<This extends HasConstructor, Args extends A
             originalMethod &&
             (async function* (this: This, ...args: Args): AsyncGenerator<YieldT> {
                 return yield* withYieldSpan(
-                    resolveSpanName(options, this, context, args),
+                    resolveSpanName(options?.name, this, context, args),
                     options?.onCall ? options.onCall.apply(this, args) : {},
                     () => originalMethod.apply(this, args),
                     options?.onReturn ? options.onReturn.bind(this) : undefined,
@@ -504,17 +513,23 @@ function withSpanImpl<R>(name: string, opts: WithSpanImplOpts<R>, fn: (span: Spa
 export function getVersion(): string | undefined {
     try {
         return readFileSync('./version', 'utf8').split(/\r?\n/)[0]
-    } catch {}
+    } catch {
+        return undefined
+    }
 }
 
 function tryHostname(): string | undefined {
     try {
         return os.hostname()
-    } catch {}
+    } catch {
+        return undefined
+    }
 }
 
 function getK8sNamespace(): string | undefined {
     try {
         return readFileSync('/var/run/secrets/kubernetes.io/serviceaccount/namespace', 'utf8').trim()
-    } catch {}
+    } catch {
+        return undefined
+    }
 }
