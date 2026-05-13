@@ -28,8 +28,7 @@
     "semiColons": false,
     "singleQuote": true,
     "indentWidth": 4,
-    "lineWidth": 120,
-    "sortNamedImports": false
+    "lineWidth": 120
   },
   "lint": {
     "include": ["src/"]

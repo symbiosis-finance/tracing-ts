@@ -4,8 +4,8 @@ import process from 'node:process'
 import {
     type Attributes,
     type AttributeValue,
-    context,
     type Context,
+    context,
     type Link,
     type Span,
     type SpanKind,
