@@ -294,7 +294,12 @@ export async function* withYieldSpan<R>(
     try {
         let i = 0
         for (;;) {
-            const iterSpan = tracer.startSpan(`${name}[${i}]`, {}, parentCtx)
+            const callerSpanContext = trace.getSpan(context.active())?.spanContext()
+            const links: Link[] = callerSpanContext &&
+                    callerSpanContext.spanId !== parentSpan.spanContext().spanId
+                ? [{ context: callerSpanContext }]
+                : []
+            const iterSpan = tracer.startSpan(`${name}[${i}]`, links.length > 0 ? { links } : {}, parentCtx)
             const iterCtx = trace.setSpan(parentCtx, iterSpan)
             let result: IteratorResult<R>
             try {

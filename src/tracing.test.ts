@@ -670,6 +670,41 @@ describe('withTracingGenerator span hierarchy', () => {
         )
         assert.ok(errorIter, 'Expected an iteration span with ERROR status')
     })
+
+    it('adds links from generator iteration spans to the active caller span', async () => {
+        collector.reset()
+
+        class Svc {
+            @withTracingGenerator()
+            async *items(): AsyncGenerator<number> {
+                yield 1
+                yield 2
+            }
+        }
+
+        await withSpan('outer.caller', {}, async () => {
+            const gen = new Svc().items()
+            assert.equal((await gen.next()).value, 1)
+            assert.equal((await gen.next()).value, 2)
+            assert.equal((await gen.next()).done, true)
+        })
+        await flush()
+
+        const spans = getAllSpans()
+        const outer = spans.find((s: any) => s.name === 'outer.caller')
+        assert.ok(outer, 'Expected outer caller span')
+
+        const iter0 = spans.find((s: any) => s.name === 'Svc.items[0]')
+        const iter1 = spans.find((s: any) => s.name === 'Svc.items[1]')
+        assert.ok(iter0, 'Expected iteration span "Svc.items[0]"')
+        assert.ok(iter1, 'Expected iteration span "Svc.items[1]"')
+
+        const hasOuterLink = (span: any) =>
+            (span.links ?? []).some((l: any) => l.traceId === outer.traceId && l.spanId === outer.spanId)
+
+        assert.ok(hasOuterLink(iter0), 'Expected iteration [0] to link to outer caller span')
+        assert.ok(hasOuterLink(iter1), 'Expected iteration [1] to link to outer caller span')
+    })
 })
 
 // ─── Resilience tests ─────────────────────────────────────────────────────────
